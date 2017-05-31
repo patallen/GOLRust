@@ -1,4 +1,5 @@
 use std::fmt;
+use std::{thread, time};
 
 // A Cell is Alive or Dead
 // 1. Any live cell with < 2 neighbors dies of loneliness
@@ -11,9 +12,9 @@ const OFFSETS: [(isize, isize); 8] = [
 
 #[derive(Clone, Debug)]
 struct Cell {
-    alive: bool,
-    x: isize,
-    y: isize,
+    pub alive: bool,
+    pub x: isize,
+    pub y: isize,
 }
 impl Cell {
     fn new(x: isize, y: isize, alive: bool) -> Cell {
@@ -96,7 +97,8 @@ impl fmt::Debug for Board {
 pub struct Game {
     pub board: Board,
     round: usize,
-    speed: usize
+    speed: usize,
+    draw_callback: Box<FnMut(Vec<Cell>)>
 }
 
 impl Game {
@@ -105,19 +107,22 @@ impl Game {
             round: 0,
             board: Board::new(source),
             speed: speed,
+            draw_callback: Box::new(|x| {})
         }
     }
     pub fn run(&mut self) {
         loop {
-            self.step()
+            let q_sec = time::Duration::from_millis(300);
+            thread::sleep(q_sec);
+            self.step();
         }
     }
     pub fn step(&mut self) {
-        println!("{:?}", self.board);
-        println!("                                    ");
         self.board.update();
-        println!("{:?}", self.board);
-        println!("                                    ");
-        println!("                                    ");
+        let cells = self.board.cells.clone();
+        (self.draw_callback)(cells);
+    }
+    pub fn set_draw_callback(&mut self, func: Box<FnMut(Vec<Cell>)>) {
+        self.draw_callback = func;
     }
 }
