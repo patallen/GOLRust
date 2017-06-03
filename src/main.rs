@@ -12,7 +12,7 @@ use game::Game;
 const WIDTH: u32 = 120;
 const HEIGHT: u32 = 90;
 const SCALE: u32 = 8;
-const SPEED: usize = 150;
+const SPEED: usize = 120;
 
 const DEAD_COLOR: (u8, u8, u8) = (0, 28, 67);
 const ALIVE_COLOR: (u8, u8, u8) = (255, 153, 0);

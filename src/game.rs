@@ -42,7 +42,8 @@ impl Game {
         loop {
             match self.mode {
                 GameMode::Playing => {
-                    let q_sec = time::Duration::from_millis(300);
+                    let dur = 1000.0 / self.speed as f64;
+                    let q_sec = time::Duration::from_millis(dur as u64);
                     thread::sleep(q_sec);
                     self.step();
                 },
@@ -50,9 +51,8 @@ impl Game {
                 _ => {}
             }
             self.handle_events();
-            match self.do_draw {
-                true => {self.draw_board(); self.do_draw = false;}
-                false => {}
+            if self.do_draw {
+                self.draw_board(); self.do_draw = false;
             }
         }
     }
