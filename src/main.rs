@@ -2,14 +2,11 @@ extern crate sdl2;
 
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::EventPump;
-
-use std::io::Read;
-use std::fs::File;
-
 
 mod board;
-use board::Game;
+mod game;
+
+use game::Game;
 
 
 const WIDTH: u32 = 120;
@@ -23,16 +20,14 @@ const BG_COLOR: (u8, u8, u8) = (0, 0, 150);
 
 
 fn main() {
-    let mut file = File::open("/Users/patallen/Code/Rust/game_of_life/src/states/first.txt").unwrap();
-    let mut buffer = String::new();
-    file.read_to_string(&mut buffer);
     let ctx = sdl2::init().unwrap();
     let video_ctx = ctx.video().unwrap();
     let window = video_ctx.window("Game of Life", WIDTH * SCALE, HEIGHT * SCALE)
                           .position_centered().opengl().build().unwrap();
     let mut renderer = window.renderer().accelerated().build().unwrap();
     let event_pump = ctx.event_pump().unwrap();
-    let mut game = Game::new(buffer, event_pump, SPEED, WIDTH as usize, HEIGHT as usize, SCALE as usize);
+
+    let mut game = Game::new(event_pump, SPEED, WIDTH as usize, HEIGHT as usize, SCALE as usize);
 
 
     game.set_draw_callback(Box::new(move |cells| {
