@@ -1,10 +1,12 @@
+use std::process;
 use std::fmt;
 use std::{thread, time};
 
-// A Cell is Alive or Dead
-// 1. Any live cell with < 2 neighbors dies of loneliness
-// 2. Any live cell with > 3 neighbors dies of overcrowding
-// 3. Any Dead cell with exactly three live neighbors becomes a live cell
+use sdl2::EventPump;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::mouse::MouseButton;
+
 const OFFSETS: [(isize, isize); 8] = [
     (0, -1), (1, -1), (1, 0), (1, 1),
     (0, 1), (-1, 1), (-1, 0), (-1, -1),
@@ -60,26 +62,22 @@ impl Board {
             };
         }
     }
-    pub fn new(source: String) -> Self {
+    pub fn set_cell_state(&mut self, cell: usize) {
+        self.cells[cell].revive();
+    }
+    pub fn clear(&mut self) {
+        self.cells.iter_mut().map(|c| c.kill());
+    }
+    pub fn new(source: String, width: usize, height: usize, scale: usize) -> Self {
         let mut cells: Vec<Cell> = Vec::new();
-        let mut line_length = 0;
-        for (lidx, line) in source.trim().split('\n').enumerate() {
-            let mut ll = 0;
-            for (cidx, ch) in line.chars().enumerate() {
-                cells.push(match &*ch.to_lowercase().to_string() {
-                    "x" | "-" => { ll += 1; Cell::new(cidx as isize, lidx as isize, false)},
-                    "o" => { ll += 1; Cell::new(cidx as isize, lidx as isize, true)},
-                    " " => {continue}
-                    _ => panic!("{} is an invalid character.", ch)
-                });
-            }
-            if line_length == 0 { line_length = ll; } else {
-                if line_length != ll { panic!("Mixing line lengths") }
+        for y in 0..height {
+            for x in 0..width {
+                cells.push(Cell::new(x as isize, y as isize, false))
             }
         }
         Board {
-            height: cells.len() as isize / line_length as isize,
-            width: line_length as isize,
+            height: height as isize,
+            width: width as isize,
             cells: cells,
         }
     }
@@ -94,35 +92,112 @@ impl fmt::Debug for Board {
         write!(f, "{}", fin)
     }
 }
+
+enum GameMode {
+    Playing,
+    Paused,
+}
+
 pub struct Game {
+    cell_size: usize,
     pub board: Board,
     round: usize,
     speed: usize,
-    draw_callback: Box<FnMut(Vec<Cell>)>
+    draw_callback: Box<FnMut(Vec<Cell>)>,
+    mode: GameMode,
+    events: EventPump,
+    do_draw: bool,
 }
 
+
 impl Game {
-    pub fn new(source: String, speed: usize) -> Game {
+    pub fn new(source: String, events: EventPump, speed: usize, width: usize, height: usize, scale: usize) -> Game {
         Game {
+            cell_size: scale,
             round: 0,
-            board: Board::new(source),
+            board: Board::new(source, width, height, scale),
             speed: speed,
-            draw_callback: Box::new(|x| {})
+            draw_callback: Box::new(|x| {}),
+            mode: GameMode::Playing,
+            events: events,
+            do_draw: false,
         }
     }
     pub fn run(&mut self) {
         loop {
-            let q_sec = time::Duration::from_millis(300);
-            thread::sleep(q_sec);
-            self.step();
+            match self.mode {
+                GameMode::Playing => {
+                    let q_sec = time::Duration::from_millis(300);
+                    thread::sleep(q_sec);
+                    self.step();
+                },
+                _ => {}
+            }
+            self.handle_events();
+            match self.do_draw {
+                true => {self.draw_board(); self.do_draw = false;}
+                false => {}
+            }
         }
+    }
+    pub fn restart(&mut self) {
+        self.board.clear();
+        self.round = 0;
+        self.mode = GameMode::Paused;
     }
     pub fn step(&mut self) {
         self.board.update();
+        self.draw_board();
+    }
+    fn draw_board(&mut self) {
         let cells = self.board.cells.clone();
         (self.draw_callback)(cells);
     }
     pub fn set_draw_callback(&mut self, func: Box<FnMut(Vec<Cell>)>) {
         self.draw_callback = func;
     }
+    fn handle_events(&mut self) {
+        for event in self.events.poll_iter() {
+            match event {
+                Event::Quit{..} => process::exit(1),
+                Event::KeyDown{keycode: kc, ..} => match kc {
+                    Some(Keycode::Escape) | Some(Keycode::Q) => process::exit(1),
+                    Some(Keycode::P) => {
+                        match self.mode {
+                            GameMode::Paused => self.mode = GameMode::Playing,
+                            GameMode::Playing => self.mode = GameMode::Paused,
+                        }
+                    },
+                    _ => {}
+                },
+                Event::MouseButtonDown{mouse_btn: button, x: x, y: y, ..} => match &self.mode {
+                    &GameMode::Paused => {
+                        match button {
+                            MouseButton::Left => {
+                                let cell_idx = cell_from_xy(self.cell_size,
+                                                            self.board.width as usize,
+                                                            x as usize, y as usize);
+                                self.board.set_cell_state(cell_idx);
+                                self.do_draw = true;
+                            },
+                            MouseButton::Right => {
+                                let cell_idx = cell_from_xy(self.cell_size,
+                                                            self.board.width as usize,
+                                                            x as usize, y as usize);
+                            }
+                            _ => {}
+                        }
+                    },
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+    }
+}
+
+fn cell_from_xy(cell_size: usize, width: usize, x: usize, y: usize) -> usize {
+    let adj_y = y / cell_size;
+    let adj_x = x / cell_size;
+    return adj_y * width + adj_x;
 }
