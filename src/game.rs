@@ -18,7 +18,7 @@ pub struct Game {
     pub board: Board,
     round: usize,
     speed: usize,
-    draw_callback: Box<FnMut(Vec<Cell>)>,
+    draw_callback: Option<Box<FnMut(Vec<Vec<Cell>>)>>,
     mode: GameMode,
     events: EventPump,
     do_draw: bool,
@@ -32,7 +32,7 @@ impl Game {
             round: 0,
             board: Board::new(width, height),
             speed: speed,
-            draw_callback: Box::new(|_| {}),
+            draw_callback: None,
             mode: GameMode::Restart,
             events: events,
             do_draw: true,
@@ -69,10 +69,13 @@ impl Game {
 
     fn draw_board(&mut self) {
         let cells = self.board.clone_cells();
-        (self.draw_callback)(cells);
+        match self.draw_callback {
+            Some(ref mut cb) => (cb)(cells),
+            None => panic!("No draw callback available.")
+        }
     }
-    pub fn set_draw_callback(&mut self, func: Box<FnMut(Vec<Cell>)>) {
-        self.draw_callback = func;
+    pub fn set_draw_callback(&mut self, func: Box<FnMut(Vec<Vec<Cell>>)>) {
+        self.draw_callback = Some(func);
     }
     fn handle_events(&mut self) {
         for event in self.events.poll_iter() {
@@ -94,17 +97,11 @@ impl Game {
                     &GameMode::Paused => {
                         match button {
                             MouseButton::Left => {
-                                let cell_idx = cell_from_xy(self.cell_size,
-                                                            self.board.width(),
-                                                            x as usize, y as usize);
-                                self.board.set_cell_state(cell_idx);
+                                self.board.set_cell_state(x as usize / self.cell_size, y as usize / self.cell_size);
                                 self.do_draw = true;
                             },
                             MouseButton::Right => {
-                                let cell_idx = cell_from_xy(self.cell_size,
-                                                            self.board.width(),
-                                                            x as usize, y as usize);
-                                self.board.unset_cell_state(cell_idx);
+                                self.board.unset_cell_state(x as usize / self.cell_size, y as usize / self.cell_size);
                                 self.do_draw = true;
                             },
                             _ => {}
@@ -116,10 +113,4 @@ impl Game {
             }
         }
     }
-}
-
-fn cell_from_xy(cell_size: usize, width: usize, x: usize, y: usize) -> usize {
-    let adj_y = y / cell_size;
-    let adj_x = x / cell_size;
-    return adj_y * width + adj_x;
 }
