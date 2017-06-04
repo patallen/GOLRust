@@ -1,108 +1,114 @@
-use std::{thread, time};
-use std::process;
+use std::time::{Instant, Duration};
 
 use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
 use sdl2::keyboard::Keycode;
-use sdl2::EventPump;
-use board::{Board, Cell};
+use sdl2::pixels::Color;
+use sdl2::render::WindowCanvas;
+use sdl2::rect::Rect;
 
+use board::Board;
+use engine::scene::Scene;
+
+const DEAD_COLOR: (u8, u8, u8) = (0, 28, 67);
+const ALIVE_COLOR: (u8, u8, u8) = (255, 153, 0);
+const BG_COLOR: (u8, u8, u8) = (0, 0, 150);
+
+
+#[derive(Debug)]
 enum GameMode {
     Playing,
-    Paused,
-    Restart,
+    Editing,
 }
 
-pub struct Game {
+pub struct GameScene {
     cell_size: usize,
-    pub board: Board,
+    board: Board,
     round: usize,
-    speed: usize,
-    draw_callback: Option<Box<FnMut(Vec<Vec<Cell>>)>>,
     mode: GameMode,
-    events: EventPump,
-    do_draw: bool,
+    last_update: Option<Instant>,
+    update_interval: Duration,
 }
-
-
-impl Game {
-    pub fn new(events: EventPump, speed: usize, width: usize, height: usize, scale: usize) -> Game {
-        Game {
+impl GameScene {
+    pub fn new(width: usize, height: usize, scale: usize, speed: usize) -> GameScene {
+        GameScene {
             cell_size: scale,
-            round: 0,
             board: Board::new(width, height),
-            speed: speed,
-            draw_callback: None,
-            mode: GameMode::Paused,
-            events: events,
-            do_draw: true,
+            round: 0,
+            mode: GameMode::Editing,
+            last_update: None,
+            update_interval: Duration::from_millis((1.0 / speed as f64 * 1000.0) as u64)
         }
     }
-    pub fn step(&mut self) {
-        match self.mode {
-            GameMode::Playing => {
-                let dur = 1000.0 / self.speed as f64;
-                let q_sec = time::Duration::from_millis(dur as u64);
-                thread::sleep(q_sec);
-                self.board.update();
-                self.draw_board();
-            },
-            GameMode::Restart => { self.restart(); },
-            _ => {}
-        }
-        self.handle_events();
-        if self.do_draw {
-            self.draw_board(); self.do_draw = false;
+    fn can_update(&mut self) -> bool {
+        let now = Instant::now();
+        match self.last_update {
+            Some(instant) => { now.duration_since(instant) > self.update_interval},
+            None => { self.last_update = Some(Instant::now()); true }
         }
     }
-    pub fn run(&mut self) {
-        loop {
-            self.step();
-        }
-    }
-    pub fn restart(&mut self) {
+    fn restart(&mut self) {
         self.board.clear();
         self.round = 0;
-        self.do_draw = true;
-        self.mode = GameMode::Paused;
+        self.mode = GameMode::Editing;
     }
-    fn draw_board(&mut self) {
+}
+
+impl Scene for GameScene {
+    fn render(&self, renderer: &mut WindowCanvas) {
+        renderer.set_draw_color(Color::RGB(BG_COLOR.0, BG_COLOR.1, BG_COLOR.2));
+        renderer.clear();
         let cells = self.board.clone_cells();
-        match self.draw_callback {
-            Some(ref mut cb) => (cb)(cells),
-            None => panic!("No draw callback available.")
+        for (y, row) in cells.iter().enumerate() {
+            for (x, cell) in row.iter().enumerate() {
+                if cell.is_alive() {
+                    renderer.set_draw_color(Color::RGB(ALIVE_COLOR.0, ALIVE_COLOR.1, ALIVE_COLOR.2));
+                    renderer.fill_rect(
+                        Rect::new(x as i32 * self.cell_size as i32,
+                                y as i32 * self.cell_size as i32,
+                                self.cell_size as u32 - 1, self.cell_size as u32 - 1)).unwrap();
+                } else {
+                    renderer.set_draw_color(Color::RGB(DEAD_COLOR.0, DEAD_COLOR.1, DEAD_COLOR.2));
+                    renderer.fill_rect(
+                        Rect::new(x as i32 * self.cell_size as i32,
+                                y as i32 * self.cell_size as i32,
+                                self.cell_size as u32 - 1, self.cell_size as u32 - 1)).unwrap();
+                }
+            }
+        }
+        renderer.present();
+    }
+    fn update(&mut self){
+        match self.mode {
+            GameMode::Playing => {
+                if self.can_update() {
+                    self.last_update = Some(Instant::now());
+                    self.board.update();
+                }
+            },
+            _ => {}
         }
     }
-    pub fn set_draw_callback(&mut self, func: Box<FnMut(Vec<Vec<Cell>>)>) {
-        self.draw_callback = Some(func);
-    }
-    fn handle_events(&mut self) {
-        for event in self.events.poll_iter() {
+    fn handle_events(&mut self, events: Vec<Event>) {
+        for event in events.iter() {
             match event {
-                Event::Quit{..} => process::exit(1),
-                Event::KeyDown{keycode: kc, ..} => match kc {
-                    Some(Keycode::Escape) | Some(Keycode::Q) => process::exit(1),
-                    Some(Keycode::R) => self.mode = GameMode::Restart,
-                    Some(Keycode::P) => {
+                &Event::KeyDown{keycode: kc, ..} => match kc {
+                    Some(Keycode::R) => self.restart(),
+                    Some(Keycode::D) => {
                         match self.mode {
-                            GameMode::Paused => self.mode = GameMode::Playing,
-                            GameMode::Playing => self.mode = GameMode::Paused,
-                            _ => {}
+                            GameMode::Editing => self.mode = GameMode::Playing,
+                            GameMode::Playing => self.mode = GameMode::Editing,
                         }
                     },
                     _ => {}
                 },
-                Event::MouseButtonDown{mouse_btn: button, x, y, ..} => match &self.mode {
-                    &GameMode::Paused => {
+                &Event::MouseButtonDown{mouse_btn: button, x, y, ..} => match &self.mode {
+                    &GameMode::Editing => {
+                        let xpos = x as usize / self.cell_size;
+                        let ypos = y as usize / self.cell_size;
                         match button {
-                            MouseButton::Left => {
-                                self.board.set_cell_state(x as usize / self.cell_size, y as usize / self.cell_size);
-                                self.do_draw = true;
-                            },
-                            MouseButton::Right => {
-                                self.board.unset_cell_state(x as usize / self.cell_size, y as usize / self.cell_size);
-                                self.do_draw = true;
-                            },
+                            MouseButton::Left => { self.board.set_cell_state(xpos, ypos); },
+                            MouseButton::Right => { self.board.unset_cell_state(xpos, ypos); },
                             _ => {}
                         }
                     },
