@@ -9,10 +9,10 @@ use game::Game;
 
 #[cfg(target_os = "emscripten")]
 mod consts {
-    pub const WIDTH: u32 = 40;
-    pub const HEIGHT: u32 = 30;
-    pub const SCALE: u32 = 20;
-    pub const SPEED: usize = 20;
+    pub const WIDTH: u32 = 60;
+    pub const HEIGHT: u32 = 40;
+    pub const SCALE: u32 = 12;
+    pub const SPEED: usize = 25;
 }
 
 
