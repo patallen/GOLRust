@@ -33,7 +33,7 @@ impl Game {
             board: Board::new(width, height),
             speed: speed,
             draw_callback: None,
-            mode: GameMode::Playing,
+            mode: GameMode::Paused,
             events: events,
             do_draw: true,
         }
