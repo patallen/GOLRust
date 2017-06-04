@@ -7,16 +7,28 @@ mod game;
 
 use game::Game;
 
+#[cfg(target_os = "emscripten")]
+mod consts {
+    pub const WIDTH: u32 = 40;
+    pub const HEIGHT: u32 = 30;
+    pub const SCALE: u32 = 20;
+    pub const SPEED: usize = 20;
+}
 
-const WIDTH: u32 = 40;
-const HEIGHT: u32 = 30;
-const SCALE: u32 = 20;
-const SPEED: usize = 60;
+
+#[cfg(not(target_os = "emscripten"))]
+mod consts {
+    pub const WIDTH: u32 = 140;
+    pub const HEIGHT: u32 = 80;
+    pub const SCALE: u32 = 10;
+    pub const SPEED: usize = 60;
+}
 
 const DEAD_COLOR: (u8, u8, u8) = (0, 28, 67);
 const ALIVE_COLOR: (u8, u8, u8) = (255, 153, 0);
 const BG_COLOR: (u8, u8, u8) = (0, 0, 150);
 
+use consts::*;
 
 fn main() {
     use sdl2::pixels::Color;
