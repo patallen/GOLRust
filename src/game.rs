@@ -33,27 +33,31 @@ impl Game {
             board: Board::new(width, height),
             speed: speed,
             draw_callback: None,
-            mode: GameMode::Restart,
+            mode: GameMode::Playing,
             events: events,
             do_draw: true,
         }
     }
+    pub fn step(&mut self) {
+        match self.mode {
+            GameMode::Playing => {
+                let dur = 1000.0 / self.speed as f64;
+                let q_sec = time::Duration::from_millis(dur as u64);
+                thread::sleep(q_sec);
+                self.board.update();
+                self.draw_board();
+            },
+            GameMode::Restart => { self.restart(); },
+            _ => {}
+        }
+        self.handle_events();
+        if self.do_draw {
+            self.draw_board(); self.do_draw = false;
+        }
+    }
     pub fn run(&mut self) {
         loop {
-            match self.mode {
-                GameMode::Playing => {
-                    let dur = 1000.0 / self.speed as f64;
-                    let q_sec = time::Duration::from_millis(dur as u64);
-                    thread::sleep(q_sec);
-                    self.step();
-                },
-                GameMode::Restart => { self.restart(); },
-                _ => {}
-            }
-            self.handle_events();
-            if self.do_draw {
-                self.draw_board(); self.do_draw = false;
-            }
+            self.step();
         }
     }
     pub fn restart(&mut self) {
@@ -62,11 +66,6 @@ impl Game {
         self.do_draw = true;
         self.mode = GameMode::Paused;
     }
-    pub fn step(&mut self) {
-        self.board.update();
-        self.draw_board();
-    }
-
     fn draw_board(&mut self) {
         let cells = self.board.clone_cells();
         match self.draw_callback {

@@ -1,18 +1,17 @@
 extern crate sdl2;
 
-use sdl2::pixels::Color;
-use sdl2::rect::Rect;
-
+mod emscripten;
 mod board;
 mod game;
+
 
 use game::Game;
 
 
-const WIDTH: u32 = 120;
-const HEIGHT: u32 = 80;
-const SCALE: u32 = 10;
-const SPEED: usize = 120;
+const WIDTH: u32 = 40;
+const HEIGHT: u32 = 30;
+const SCALE: u32 = 20;
+const SPEED: usize = 60;
 
 const DEAD_COLOR: (u8, u8, u8) = (0, 28, 67);
 const ALIVE_COLOR: (u8, u8, u8) = (255, 153, 0);
@@ -20,6 +19,8 @@ const BG_COLOR: (u8, u8, u8) = (0, 0, 150);
 
 
 fn main() {
+    use sdl2::pixels::Color;
+    use sdl2::rect::Rect;
     let ctx = sdl2::init().unwrap();
     let video_ctx = ctx.video().unwrap();
     let window = video_ctx.window("Game of Life", WIDTH * SCALE, HEIGHT * SCALE)
@@ -52,5 +53,10 @@ fn main() {
         }
         renderer.present();
     }));
-    game.run();
+
+    #[cfg(target_os = "emscripten")]
+    emscripten::set_main_loop_callback(|| { game.step() });
+
+    #[cfg(not(target_os = "emscripten"))]
+    { game.run(); }
 }
