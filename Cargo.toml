@@ -3,5 +3,7 @@ name = "game_of_life"
 version = "0.1.0"
 authors = ["Patrick Allen <prallen90@gmail.com>"]
 
-[dependencies]
-sdl2 = "0.30.0"
+[dependencies.sdl2]
+version = "0.30.0"
+default-features = false
+features = ["ttf"]

@@ -2,6 +2,7 @@ extern crate sdl2;
 
 mod emscripten;
 mod engine;
+mod scenes;
 mod board;
 mod game;
 
