@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use sdl2::keyboard::Keycode;
 use sdl2::render::WindowCanvas;
 use sdl2::pixels::Color;
 use sdl2::rect::{Rect, Point};
@@ -9,14 +10,13 @@ use sdl2::video::Window;
 use sdl2::ttf;
 
 
-use engine::scene::Scene;
+use engine::scene::{Scene, SceneEvent};
 
 // pub enum Event {
 //     Pause,
 //     Quit,
 //     Restart,
 // }
-
 struct Text {
     contents: String,
     height: usize,
@@ -69,6 +69,12 @@ impl Scene for PauseScene {
     }
     fn update(&mut self) {}
     fn handle_events(&mut self, _: Vec<Event>) {}
+    fn think(&self, event: Event) -> Option<SceneEvent> {
+        match event {
+            Pause => Some(SceneEvent::Pop),
+            _ => None
+        }
+    }
 }
 
 pub struct StartScene {}
@@ -119,13 +125,12 @@ impl Scene for StartScene {
     }
     fn update(&mut self) {}
     fn handle_events(&mut self, _: Vec<Event>) {}
+    fn think(&self, event: Event) -> Option<SceneEvent> {
+        match event {
+            Event::KeyDown{keycode: Some(Keycode::Return), ..} => {
+                Some(SceneEvent::Pop)
+            },
+            _ => None
+        }
+    }
 }
-
-//impl Scene {
-//    pub fn think(&self, event: Event) {
-//        match event {
-//            Pause => SceneEvent::Pop,
-//            Restart =>
-//        }
-//    }
-//}

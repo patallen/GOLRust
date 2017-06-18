@@ -6,7 +6,14 @@ use sdl2::EventPump;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
-use engine::scene::{SceneStack, BoxedScene};
+
+use engine::scene::{SceneStack, BoxedScene, SceneEvent};
+use scenes::{StartScene, PauseScene};
+
+enum EngineState {
+    Paused,
+    Running
+}
 
 pub struct EngineMeta {
     title: &'static str,
@@ -28,6 +35,7 @@ pub struct Engine {
     scene_stack: SceneStack,
     renderer: WindowCanvas,
     event_pump: EventPump,
+    state: EngineState,
 }
 
 impl Engine {
@@ -45,10 +53,11 @@ impl Engine {
             scene_stack: SceneStack::new(),
             renderer: canvas,
             event_pump: event_pump,
+            state: EngineState::Running
         }
     }
     pub fn update(&mut self) {
-        if let Some(state) = self.scene_stack.top() { state.update(); };
+        if let Some(state) = self.scene_stack.top_mut() { state.update(); };
     }
     pub fn render(&mut self) {
         match self.scene_stack.top() {
@@ -60,25 +69,37 @@ impl Engine {
         self.scene_stack.add_scene(scene);
     }
     pub fn handle_events(&mut self) {
-        let mut events = Vec::new();
         for event in self.event_pump.poll_iter() {
+            if let Some(scene) = self.scene_stack.top().unwrap().think(event) {
+                match scene {
+                    SceneEvent::Pop => self.scene_stack.drop(),
+                    SceneEvent::Push(new) => self.scene_stack.push(Box::new(*new)),
+                    _ => {}
+                }
+                ()
+            }
             match event {
-                Event::MouseMotion{..} => {},
-                Event::FingerMotion{..} => {},
                 Event::Quit{..} => process::exit(1),
                 Event::KeyDown{keycode, ..} => {
                     match keycode {
                         Some(Keycode::Q) => process::exit(1),
-                        Some(Keycode::P) => {},
-                        _ => events.push(event)
+                        Some(Keycode::P) => {
+                            match self.state {
+                                EngineState::Paused => {
+                                    self.scene_stack.drop();
+                                    self.state = EngineState::Running;
+                                },
+                                _ => {
+                                    self.scene_stack.push(Box::new(PauseScene{}));
+                                    self.state = EngineState::Paused;
+                                }
+                            }
+                        },
+                        _ => {}
                     }
                 },
-                _ => events.push(event)
+                _ => {}
             }
-        }
-        match self.scene_stack.top() {
-            Some(top) => {top.handle_events(events)},
-            None => panic!("No more states.")
         }
     }
 }

@@ -6,7 +6,8 @@ mod scenes;
 mod board;
 mod game;
 
-use game::GameScene;
+use game::{GameScene};
+use scenes::StartScene;
 use engine::engine::{Engine, EngineMeta};
 
 pub const SPEED: usize = 100;
@@ -34,6 +35,7 @@ fn main() {
     let context = sdl2::init().expect("Trouple initializing sdl2.");
     let meta = EngineMeta::new(TITLE, WIDTH as u32, HEIGHT as u32, SCALE as u32);
     let mut game = Engine::new(context, meta);
+    game.add_scene(Box::new(StartScene{}));
     game.add_scene(Box::new(GameScene::new(WIDTH, HEIGHT, SCALE, SPEED)));
 
 

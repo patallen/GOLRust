@@ -9,6 +9,8 @@ use sdl2::rect::Rect;
 
 use board::Board;
 use engine::scene::Scene;
+use engine::scene::SceneEvent;
+
 
 const DEAD_COLOR: (u8, u8, u8) = (0, 28, 67);
 const ALIVE_COLOR: (u8, u8, u8) = (255, 153, 0);
@@ -54,6 +56,7 @@ impl GameScene {
     }
 }
 
+
 impl Scene for GameScene {
     fn render(&self, renderer: &mut WindowCanvas) {
         renderer.set_draw_color(Color::RGB(BG_COLOR.0, BG_COLOR.1, BG_COLOR.2));
@@ -77,6 +80,9 @@ impl Scene for GameScene {
             }
         }
         renderer.present();
+    }
+    fn think(&self, event: Event) -> Option<SceneEvent> {
+        None
     }
     fn update(&mut self){
         match self.mode {
