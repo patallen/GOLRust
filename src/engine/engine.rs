@@ -63,7 +63,6 @@ impl Engine {
         let mut events = Vec::new();
         for event in self.event_pump.poll_iter() {
             match event {
-                Event::MouseMotion{..} => {},
                 Event::FingerMotion{..} => {},
                 Event::Quit{..} => process::exit(1),
                 Event::KeyDown{keycode, ..} => {
